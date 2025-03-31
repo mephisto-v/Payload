@@ -97,9 +97,9 @@ def customPRF512_test(key, A, B):
 def main():
     print('Number of CPUs: ', os.cpu_count())
 
-    packets = rdpcap('packets.pcap')
+    packets = rdpcap('Shak.pcap')
     handshakes = [0, 0, 0, 0]
-    essid = 'RT-WiFi-15C2'
+    essid = 'PEKLO'
     bssid = ''
     cl = ''
 
