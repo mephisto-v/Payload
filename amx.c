@@ -319,8 +319,7 @@ attackstate newattackstate() {
     return state;
 }
 
-// PTW Functions
-uint8_t *GetKeystream(uint8_t *cipherbytes, uint8_t *plainbytes, int len) {
+uint8_t *GetKeystream(const uint8_t *cipherbytes, const uint8_t *plainbytes, int len) {
     uint8_t *keystream = malloc(len);
     for (int i = 0; i < len; i++) {
         keystream[i] = cipherbytes[i] ^ plainbytes[i];
