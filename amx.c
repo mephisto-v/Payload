@@ -91,7 +91,6 @@ int isvalidpkt(const struct pcap_pkthdr *header, const uint8_t *packet) {
 
 // ARP request/response handling
 void process_arp(uint8_t *packet, attackstate *state) {
-    // Handle ARP request/response
     uint8_t arp_known[64];
     memcpy(arp_known, ARP_HEADER, sizeof(ARP_HEADER) - 1);
     if (packet[0] == 0xFF) {
