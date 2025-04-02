@@ -42,18 +42,19 @@ def get_eapol(pcap):
 
     for packet in packets_list:
         if packet.haslayer(EAPOL):
-            packet_raw = binascii.hexlify(packet[Raw].load)
-            if packet_raw[2:6].decode() == "008a": #message_1
-                messages["message_1"] = packet
+            if packet.haslayer(Raw):
+                packet_raw = binascii.hexlify(packet[Raw].load)
+                if packet_raw[2:6].decode() == "008a": #message_1
+                    messages["message_1"] = packet
                 
-            elif packet_raw[2:6].decode() == "010a": #message_2
-                messages["message_2"] = packet
+                elif packet_raw[2:6].decode() == "010a": #message_2
+                    messages["message_2"] = packet
 
-            elif packet_raw[2:6].decode() == "13ca": #message_3
-                messages["message_3"] = packet
+                elif packet_raw[2:6].decode() == "13ca": #message_3
+                    messages["message_3"] = packet
 
-            elif packet_raw[2:6].decode() == "030a": #message_4
-                messages["message_4"] = packet
+                elif packet_raw[2:6].decode() == "030a": #message_4
+                    messages["message_4"] = packet
 
         elif packet.haslayer(Dot11Beacon):
             messages["message_ssid"] = get_ssid(packet).decode()
@@ -64,18 +65,26 @@ def get_eapol(pcap):
             if len(messages) >= 3:
                 return messages
 
+    return messages if len(messages) >= 3 else None
+
 def main(wordlist, pcap):
     
     messages = get_eapol(pcap)
     
+    if not messages:
+        sys.exit("[!] Insufficient packets for a full handshake (need packets 2 and 3 or packets 3 and 4 or beacon frame)")
+
     if "message_3" in messages and "message_4" in messages:
         eapol_2 = messages["message_3"]
         eapol_1 = messages["message_4"]
     elif "message_2" in messages and "message_3" in messages:
         eapol_1 = messages["message_2"]
         eapol_2 = messages["message_3"]
+    elif "message_2" in messages and "message_4" in messages:
+        eapol_1 = messages["message_2"]
+        eapol_2 = messages["message_4"]
     else:
-        sys.exit("[!] Insufficient packets for a full handshake (need packets 2 and 3 or packets 3 and 4)")
+        sys.exit("[!] Insufficient packets for a full handshake (need packets 2 and 3 or packets 3 and 4, or packets 2 and 4)")
 
     ap_mac = get_bssid(messages).replace(":", "")
     ap_mac = binascii.a2b_hex(ap_mac)
