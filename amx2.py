@@ -13,8 +13,6 @@ parser.add_argument("-w", "--wordlist", help="The wordlist for the bruteforce", 
 parser.add_argument("-p", "--pcap", help="The pcap where EAPOL authentication is", required=True)
 args = parser.parse_args()
 
-
-
 def calc_ptk(key, A, B):
     blen = 64
     i = 0
@@ -35,7 +33,7 @@ def get_bssid(messages):
     return messages["message_1"].addr2
 
 def get_ssid(beacon_frame):
-        return beacon_frame[Dot11Elt].info if not b"\x00" in beacon_frame[Dot11Elt].info and beacon_frame[Dot11Elt].info != "" else ""
+    return beacon_frame[Dot11Elt].info if not b"\x00" in beacon_frame[Dot11Elt].info and beacon_frame[Dot11Elt].info != "" else ""
 
 def get_eapol(pcap):
     packets_list = rdpcap(pcap)
@@ -60,35 +58,44 @@ def get_eapol(pcap):
         elif packet.haslayer(Dot11Beacon):
             messages["message_ssid"] = get_ssid(packet).decode()
 
-            if not messages["message_1"].addr3 == packet.addr3:
+            if "message_1" in messages and not messages["message_1"].addr3 == packet.addr3:
                 sys.exit("[!] Could not find a suitable beacon for this wpa_handshake...")
 
-            if len(messages) == 5:
+            if len(messages) >= 3:
                 return messages
 
 def main(wordlist, pcap):
     
     messages = get_eapol(pcap)
+    
+    if "message_3" in messages and "message_4" in messages:
+        eapol_2 = messages["message_3"]
+        eapol_1 = messages["message_4"]
+    elif "message_2" in messages and "message_3" in messages:
+        eapol_1 = messages["message_2"]
+        eapol_2 = messages["message_3"]
+    else:
+        sys.exit("[!] Insufficient packets for a full handshake (need packets 2 and 3 or packets 3 and 4)")
 
     ap_mac = get_bssid(messages).replace(":", "")
     ap_mac = binascii.a2b_hex(ap_mac)
 
-    client_mac = messages["message_1"].addr1.replace(":", "")
+    client_mac = eapol_1.addr1.replace(":", "")
     client_mac = binascii.a2b_hex(client_mac)
 
-    aNonce = binascii.hexlify(messages["message_1"][Raw].load)[26:90]
+    aNonce = binascii.hexlify(eapol_1[Raw].load)[26:90]
     aNonce = binascii.a2b_hex(aNonce)
 
-    sNonce = binascii.hexlify(messages["message_2"][Raw].load)[26:90]
+    sNonce = binascii.hexlify(eapol_2[Raw].load)[26:90]
     sNonce = binascii.a2b_hex(sNonce)
 
     pke = b"Pairwise key expansion"
 
     key_data = min(ap_mac, client_mac) + max(ap_mac, client_mac) + min(aNonce, sNonce) + max(aNonce, sNonce)
 
-    message_integrity_check = binascii.hexlify(messages["message_2"][Raw].load)[154:186]
+    message_integrity_check = binascii.hexlify(eapol_2[Raw].load)[154:186]
 
-    wpa_data = binascii.hexlify(bytes(messages["message_2"][EAPOL]))
+    wpa_data = binascii.hexlify(bytes(eapol_2[EAPOL]))
     wpa_data = wpa_data.replace(message_integrity_check, b"0" * 32)
     wpa_data = binascii.a2b_hex(wpa_data)
 
